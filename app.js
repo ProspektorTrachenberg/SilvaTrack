@@ -76,7 +76,7 @@ function renderMachineList(filter = "") {
 
     const color = getStatusColor(machine.status);
     const blinkClass = machine.status === "Awaria" ? "blink" : "";
-    const iconType = machine.name.toLowerCase().includes('forwarder') ? 'forwarder' : 'harvester';
+    const iconType = machine.name.toLowerCase().includes('forwarder') ? 'forwarder' : 'harWester';
 
     const icon = L.divIcon({
       className: "",
