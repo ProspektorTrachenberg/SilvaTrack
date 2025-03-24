@@ -1,5 +1,8 @@
+// === Inicjalizacja mapy ===
+const map = L.map('map').setView([51.531, 16.892], 15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-// DANE MASZYN
+// === Dane maszyn ===
 const machines = [
   {
     id: "M01",
@@ -9,7 +12,7 @@ const machines = [
     year: 2021,
     operator: "Jan Kowalski",
     lat: 51.5305,
-    lng: 16.8925,
+    lng: 16.8931,
     status: "Pracuje"
   },
   {
@@ -36,9 +39,6 @@ const machines = [
   }
 ];
 
-const map = L.map('map').setView([51.531, 16.892], 15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
 const list = document.getElementById("machines");
 const markers = {};
 
@@ -51,9 +51,10 @@ function getStatusColor(status) {
   }
 }
 
+// === FILTR STATUSU ===
 const filterDiv = document.getElementById("filter-container");
 filterDiv.innerHTML = `
-  <label><strong>Status:</strong> 
+  <label><strong>Filtruj po statusie:</strong>
     <select id="statusFilter">
       <option value="">Wszystkie</option>
       <option value="Pracuje">Pracuje</option>
@@ -75,7 +76,7 @@ function renderMachineList(filter = "") {
 
     const color = getStatusColor(machine.status);
     const blinkClass = machine.status === "Awaria" ? "blink" : "";
-    const iconType = machine.name.toLowerCase().includes("forwarder") ? "forwarder" : "harwester";
+    const iconType = machine.name.toLowerCase().includes('forwarder') ? 'forwarder' : 'harvester';
 
     const icon = L.divIcon({
       className: "",
@@ -93,9 +94,12 @@ function renderMachineList(filter = "") {
             z-index: 2;
           "></div>
           <img src="images/${iconType}.png" width="32" height="32"
-               style="display: block; position: absolute; bottom: 0;" 
-               onerror="this.style.display='none'" />
-        </div>`
+               style="display: block; position: absolute; bottom: 0;" />
+        </div>
+      `,
+      iconSize: [32, 38],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
     });
 
     const popupContent = `
@@ -107,8 +111,7 @@ function renderMachineList(filter = "") {
       Operator: ${machine.operator}
     `;
 
-    const marker = L.marker([machine.lat, machine.lng], { icon }).addTo(map)
-                   .bindPopup(popupContent);
+    const marker = L.marker([machine.lat, machine.lng], { icon }).addTo(map).bindPopup(popupContent);
     markers[machine.id] = marker;
 
     const li = document.createElement("li");
@@ -119,8 +122,7 @@ function renderMachineList(filter = "") {
           <strong>${machine.name}</strong><br>
           Status: ${machine.status}<br>
           Model: ${machine.model}<br>
-          Operator: ${machine.operator}<br>
-          <button onclick="openStatsWindow(${JSON.stringify(machine).replace(/"/g, "&quot;")})">📊</button>
+          Operator: ${machine.operator}
         </div>
       </div>
     `;
@@ -133,69 +135,115 @@ function renderMachineList(filter = "") {
   });
 }
 
-function openStatsWindow(machine) {
-  const stats = {
-    hours: Math.floor(Math.random() * 10) + 5,
-    volume: Math.floor(Math.random() * 100) + 50,
-    distance: Math.floor(Math.random() * 30) + 10,
-    failures: Math.floor(Math.random() * 3)
-  };
+renderMachineList();
 
-  const html = `
-    <html>
-    <head>
-      <title>Statystyki - ${machine.name}</title>
-      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    </head>
-    <body style="font-family: Arial; padding: 20px;">
-      <h2>${machine.name} – Statystyki</h2>
-      <canvas id="chart" width="360" height="200"></canvas>
-      <br>
-      <button onclick="generatePDF()">📄 PDF</button>
+// === Dynamiczne warstwy WMS ===
+const availableWmsLayers = {
+  0: "Granice RDLP",
+  1: "Granice nadleśnictw",
+  2: "Granice leśnictw",
+  3: "Oddziały leśne",
+  4: "Powierzchnie próbne"
+};
 
-      <script>
-        const { jsPDF } = window.jspdf;
-        const ctx = document.getElementById('chart').getContext('2d');
-        new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: ['Godziny', 'm³ drewna', 'km', 'Awarie'],
-            datasets: [{
-              label: 'Wartość',
-              data: [${stats.hours}, ${stats.volume}, ${stats.distance}, ${stats.failures}],
-              backgroundColor: ['#4caf50', '#2196f3', '#ff9800', '#f44336']
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { display: false },
-              title: { display: true, text: 'Raport' }
-            }
-          }
-        });
+const wmsLayers = {};
+const wmsLayerGroup = L.layerGroup().addTo(map);
 
-        function generatePDF() {
-          const doc = new jsPDF();
-          doc.setFontSize(14);
-          doc.text('Raport – ${machine.name}', 10, 20);
-          doc.setFontSize(11);
-          doc.text('Operator: ${machine.operator}', 10, 30);
-          doc.text('Godziny: ${stats.hours}', 10, 40);
-          doc.text('m³ drewna: ${stats.volume}', 10, 50);
-          doc.text('km: ${stats.distance}', 10, 60);
-          doc.text('Awarie: ${stats.failures}', 10, 70);
-          doc.save('raport-${machine.name}.pdf');
-        }
-      </script>
-    </body>
-    </html>
-  `;
+const wmsContainer = document.getElementById("wms-layers");
+for (const [id, label] of Object.entries(availableWmsLayers)) {
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.id = "wms-layer-" + id;
+  checkbox.dataset.layerId = id;
+  checkbox.checked = (id === "3");
 
-  const win = window.open("", "_blank");
-  win.document.write(html);
-  win.document.close();
+  const lbl = document.createElement("label");
+  lbl.appendChild(checkbox);
+  lbl.appendChild(document.createTextNode(" " + label));
+  wmsContainer.appendChild(lbl);
+
+  checkbox.addEventListener("change", function () {
+    const lid = this.dataset.layerId;
+    if (this.checked) {
+      const layer = L.tileLayer.wms("https://mapserver.bdl.lasy.gov.pl/ArcGIS/services/WMS_BDL/MapServer/WMSServer", {
+        layers: lid,
+        format: "image/png",
+        transparent: true,
+        attribution: "Lasy Państwowe"
+      });
+      wmsLayers[lid] = layer;
+      wmsLayerGroup.addLayer(layer);
+    } else {
+      if (wmsLayers[lid]) {
+        wmsLayerGroup.removeLayer(wmsLayers[lid]);
+        delete wmsLayers[lid];
+      }
+    }
+  });
+
+  wmsContainer.appendChild(document.createElement("br"));
 }
 
-renderMachineList();
+// === Obsługa wgrywania KML ===
+const kmlInput = document.getElementById("kml-input");
+const kmlFilesList = document.getElementById("kml-files");
+const kmlLayers = [];
+
+kmlInput.addEventListener("change", (event) => {
+  const files = Array.from(event.target.files);
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const kmlLayer = omnivore.kml.parse(e.target.result);
+      kmlLayer.addTo(map);
+
+      // Dodaj warstwę do listy
+      const layerEntry = {
+        name: file.name,
+        layer: kmlLayer,
+        visible: true
+      };
+      kmlLayers.push(layerEntry);
+      addKmlToList(layerEntry);
+    };
+    reader.readAsText(file);
+  });
+
+  // Reset input, żeby można było dodać ten sam plik ponownie
+  event.target.value = "";
+});
+
+function addKmlToList(entry) {
+  const li = document.createElement("li");
+  li.style.marginBottom = "5px";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = true;
+  checkbox.addEventListener("change", () => {
+    if (checkbox.checked) {
+      entry.layer.addTo(map);
+      entry.visible = true;
+    } else {
+      map.removeLayer(entry.layer);
+      entry.visible = false;
+    }
+  });
+
+  const nameSpan = document.createElement("span");
+  nameSpan.textContent = " " + entry.name + " ";
+
+  const removeBtn = document.createElement("button");
+  removeBtn.textContent = "🗑 Usuń";
+  removeBtn.style.marginLeft = "10px";
+  removeBtn.addEventListener("click", () => {
+    map.removeLayer(entry.layer);
+    kmlFilesList.removeChild(li);
+  });
+
+  li.appendChild(checkbox);
+  li.appendChild(nameSpan);
+  li.appendChild(removeBtn);
+  kmlFilesList.appendChild(li);
+}

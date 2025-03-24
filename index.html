@@ -2,41 +2,39 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SylvaTrack</title>
-
-  <!-- Style CSS i Leaflet CSS -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SylvaTrack - Koordynator</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-  <!-- Leaflet (mapa) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <!-- Turf.js (analizy geospacjalne) -->
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-  <!-- Chart.js (wykresy) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- jsPDF (generowanie PDF) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-  <!-- Główny skrypt aplikacji -->
-  <script src="app.js" defer></script>
+  <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
 </head>
 <body>
 
-  <main>
-    <!-- Mapa -->
-    <div id="map"></div>
+  <div id="controls" style="padding: 10px; background: #f9f9f9;">
+    <!-- Warstwy WMS -->
+    <div id="wms-layers" style="font-size: 14px; margin-bottom: 10px;">
+      <strong>Warstwy WMS Lasów Państwowych:</strong><br>
+    </div>
 
-    <!-- Lista maszyn -->
+    <!-- Wgrywanie KML -->
+    <input type="file" id="kml-input" accept=".kml" multiple />
+
+    <!-- Lista załadowanych KML -->
+    <div id="kml-list" style="margin-top: 10px; font-size: 14px;">
+      <strong>Załadowane warstwy KML:</strong>
+      <ul id="kml-files"></ul>
+    </div>
+  </div>
+
+  <main>
+    <div id="map"></div>
     <div id="machine-list">
-      <!-- Kontener filtra -->
       <div id="filter-container"></div>
-      <!-- Lista maszyn -->
       <ul id="machines"></ul>
     </div>
   </main>
 
+  <script src="app.js"></script>
 </body>
 </html>
-
-
