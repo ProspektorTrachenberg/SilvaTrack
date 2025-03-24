@@ -116,15 +116,16 @@ function renderMachineList(filter = "") {
 
     const li = document.createElement("li");
     li.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <img src="images/${iconType}.png" width="32" height="32" alt="${iconType}" />
-        <div>
-          <strong>${machine.name}</strong><br>
-          Status: ${machine.status}<br>
-          Model: ${machine.model}<br>
-          Operator: ${machine.operator}
-        </div>
-      </div>
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <img src="images/${iconType}.png" width="32" height="32" alt="${iconType}" />
+    <div>
+      <strong>${machine.name}</strong><br>
+      Status: ${machine.status}<br>
+      Model: ${machine.model}<br>
+      Operator: ${machine.operator}<br>
+      <button onclick='openStatsWindow(${JSON.stringify(machine).replace(/"/g, '&quot;')})'>📊 Statystyki</button>
+    </div>
+  </div>
     `;
     li.style.borderLeft = `5px solid ${color}`;
     li.addEventListener("click", () => {
@@ -247,3 +248,96 @@ function addKmlToList(entry) {
   li.appendChild(removeBtn);
   kmlFilesList.appendChild(li);
 }
+function openStatsWindow(machine) {
+  const html = `
+    <html>
+    <head>
+      <title>Statystyki - ${machine.name}</title>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    </head>
+    <body style="font-family: Arial; padding: 20px;">
+      <h2>${machine.name} – Statystyki</h2>
+      <label for="range">Zakres czasu:</label>
+      <select id="range" onchange="updateChart()">
+        <option value="day">Dzień</option>
+        <option value="week">Tydzień</option>
+        <option value="month">Miesiąc</option>
+      </select>
+      <br><br>
+      <canvas id="chart" width="400" height="200"></canvas>
+      <br>
+      <button onclick="generatePDF()">📄 Generuj PDF</button>
+
+      <script>
+        const { jsPDF } = window.jspdf;
+
+        const ranges = {
+          day: [8, 75, 12, 1],
+          week: [40, 380, 80, 3],
+          month: [160, 1600, 320, 6]
+        };
+
+        let currentRange = 'day';
+        let chart;
+
+        function updateChart() {
+          currentRange = document.getElementById('range').value;
+          const values = ranges[currentRange];
+          chart.data.datasets[0].data = values;
+          chart.options.plugins.title.text = getTitle();
+          chart.update();
+        }
+
+        function getTitle() {
+          switch(currentRange) {
+            case 'day': return 'Dzienny raport';
+            case 'week': return 'Tygodniowy raport';
+            case 'month': return 'Miesięczny raport';
+          }
+        }
+
+        const ctx = document.getElementById('chart').getContext('2d');
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['Godziny pracy', 'm³ drewna', 'Kilometry', 'Awarie'],
+            datasets: [{
+              label: 'Wartość',
+              data: ranges[currentRange],
+              backgroundColor: ['#4caf50', '#2196f3', '#ff9800', '#f44336']
+            }]
+          },
+          options: {
+            responsive: false,
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: getTitle() }
+            }
+          }
+        });
+
+        function generatePDF() {
+          const values = ranges[currentRange];
+          const doc = new jsPDF();
+          doc.setFontSize(16);
+          doc.text('Raport – ${machine.name}', 10, 20);
+          doc.setFontSize(12);
+          doc.text('Operator: ${machine.operator}', 10, 30);
+          doc.text('Zakres: ' + getTitle(), 10, 40);
+          doc.text('Godziny pracy: ' + values[0], 10, 50);
+          doc.text('Pozyskane m³: ' + values[1], 10, 60);
+          doc.text('Przejechane km: ' + values[2], 10, 70);
+          doc.text('Zgłoszone awarie: ' + values[3], 10, 80);
+          doc.save('raport-${machine.name}-' + currentRange + '.pdf');
+        }
+      </script>
+    </body>
+    </html>
+  `;
+
+  const win = window.open("", "_blank");
+  win.document.write(html);
+  win.document.close();
+}
+
